@@ -6,11 +6,13 @@
                 <button type="button" class="btn btn-inline btn-danger"
                         hx-delete="/routes/{{ r.hostname }}"
                         hx-target="#content"
-                        hx-swap="innerHTML">Confirm delete</button>
+                        hx-swap="innerHTML"
+                        hx-disabled-elt="this">Confirm delete</button>
                 <button type="button" class="btn btn-inline btn-secondary"
                         hx-get="/routes/{{ r.hostname }}/row"
                         hx-target="closest tr"
-                        hx-swap="outerHTML">Cancel</button>
+                        hx-swap="outerHTML"
+                        hx-disabled-elt="this">Cancel</button>
             </div>
         </div>
     </td>

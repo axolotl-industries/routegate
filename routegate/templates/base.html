@@ -146,6 +146,34 @@
         button:hover, .btn:hover { background: var(--primary-hover); }
         button:disabled, .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        /* In-flight HTMX request: show a spinner inside the triggering button
+           and hide its text so the user can't click it eleventeen times. HTMX
+           automatically adds .htmx-request to the requesting element. */
+        button.htmx-request, .btn.htmx-request,
+        form.htmx-request button[type=submit] {
+            color: transparent !important;
+            pointer-events: none;
+            position: relative;
+        }
+        button.htmx-request::after, .btn.htmx-request::after,
+        form.htmx-request button[type=submit]::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: routegate-spin 0.7s linear infinite;
+        }
+        .btn-link.htmx-request::after, .btn-secondary.htmx-request::after {
+            border-color: rgba(146, 173, 218, 0.35);
+            border-top-color: var(--primary);
+        }
+        @keyframes routegate-spin { to { transform: rotate(360deg); } }
+
         .btn-inline {
             padding: 6px 14px;
             font-size: 13px;

@@ -12,7 +12,8 @@
             hx-post="/routes"
         {% endif %}
         hx-target="#content"
-        hx-swap="innerHTML">
+        hx-swap="innerHTML"
+        hx-disabled-elt="find button[type=submit]">
         <div class="form-grid">
             <div class="form-row {% if errors.subdomain %}has-error{% endif %}">
                 <label for="subdomain">Subdomain</label>
@@ -68,7 +69,8 @@
 
         <div class="form-actions">
             <button type="button" class="btn btn-inline btn-secondary"
-                    hx-get="/" hx-target="#content" hx-swap="innerHTML">Cancel</button>
+                    hx-get="/" hx-target="#content" hx-swap="innerHTML"
+                    hx-disabled-elt="this">Cancel</button>
             <button type="submit" class="btn btn-inline">{{ 'Save changes' if mode == 'edit' else 'Create route' }}</button>
         </div>
     </form>

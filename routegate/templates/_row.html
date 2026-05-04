@@ -30,11 +30,13 @@
                 <button type="button" class="btn-link"
                         hx-get="/routes/{{ r.hostname }}/edit"
                         hx-target="#content"
-                        hx-swap="innerHTML">edit</button>
+                        hx-swap="innerHTML"
+                        hx-disabled-elt="this">edit</button>
                 <button type="button" class="btn-link btn-link-danger"
                         hx-get="/routes/{{ r.hostname }}/confirm-delete"
                         hx-target="closest tr"
-                        hx-swap="outerHTML">delete</button>
+                        hx-swap="outerHTML"
+                        hx-disabled-elt="this">delete</button>
             {% endif %}
         </div>
     </td>
