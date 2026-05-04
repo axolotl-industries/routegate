@@ -32,13 +32,14 @@ def test_round_trip_preserves_comments(doc):
     assert "Ingress rules" in text
 
 
-def test_add_inserts_before_catch_all(doc):
+def test_add_inserts_at_top(doc):
+    """New ingress entries go at index 0. Catch-all stays put at the end."""
     doc.add("newapp.geoffflix.uk", "http://192.168.1.99:8000")
-    last = doc.ingress[-1]
-    assert "hostname" not in last  # catch-all still last
-    second_last = doc.ingress[-2]
-    assert second_last["hostname"] == "newapp.geoffflix.uk"
-    assert second_last["service"] == "http://192.168.1.99:8000"
+    first = doc.ingress[0]
+    assert first["hostname"] == "newapp.geoffflix.uk"
+    assert first["service"] == "http://192.168.1.99:8000"
+    # Catch-all (entry without hostname) is still last
+    assert "hostname" not in doc.ingress[-1]
 
 
 def test_add_duplicate_raises(doc):
@@ -69,9 +70,9 @@ def test_full_round_trip_after_mutation(doc):
     text = tunnel.dumps(doc)
     doc2 = tunnel.loads(text)
     assert doc2.hostnames() == [
+        "newapp.geoffflix.uk",
         "radarr.geoffflix.uk",
         "audiobookshelf.geoffflix.uk",
-        "newapp.geoffflix.uk",
     ]
     assert doc2.find("radarr.geoffflix.uk")["service"] == "http://10.0.0.5:7878"
     # comments still preserved

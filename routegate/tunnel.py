@@ -42,12 +42,11 @@ class TunnelDoc:
     def add(self, hostname: str, service: str) -> None:
         if self.find(hostname) is not None:
             raise ValueError(f"ingress already has hostname {hostname!r}")
-        catch_all_idx = self._catch_all_index()
-        new_entry = {"hostname": hostname, "service": service}
-        if catch_all_idx is None:
-            self.ingress.append(new_entry)
-        else:
-            self.ingress.insert(catch_all_idx, new_entry)
+        # Insert at the top of the ingress list. cloudflared evaluates rules
+        # top-to-bottom and only the catch-all (the entry without `hostname`)
+        # has to be last, so prepending is always safe and avoids any chance
+        # of writing into or after the catch-all by accident.
+        self.ingress.insert(0, {"hostname": hostname, "service": service})
 
     def update(self, hostname: str, *, service: str) -> None:
         entry = self.find(hostname)
