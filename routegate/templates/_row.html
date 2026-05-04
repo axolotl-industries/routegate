@@ -1,4 +1,4 @@
-<tr id="row-{{ r.hostname }}">
+<tr>
     <td class="mono">
         {{ r.hostname }}
         {% if r.protected %}<span class="badge badge-protected">protected</span>{% endif %}
@@ -27,13 +27,13 @@
             {% elif not r.in_caddy and not r.in_tunnel and not r.in_dns %}
                 <span class="muted" style="font-size: 12px;">—</span>
             {% else %}
-                <button class="btn-link"
+                <button type="button" class="btn-link"
                         hx-get="/routes/{{ r.hostname }}/edit"
                         hx-target="#content"
                         hx-swap="innerHTML">edit</button>
-                <button class="btn-link btn-link-danger"
+                <button type="button" class="btn-link btn-link-danger"
                         hx-get="/routes/{{ r.hostname }}/confirm-delete"
-                        hx-target="#row-{{ r.hostname }}"
+                        hx-target="closest tr"
                         hx-swap="outerHTML">delete</button>
             {% endif %}
         </div>

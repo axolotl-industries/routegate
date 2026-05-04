@@ -6,7 +6,7 @@
         <div class="row-actions">
             <a class="btn btn-inline btn-secondary"
                href="?live={{ 'false' if live else 'true' }}">{{ 'Hide' if live else 'Show' }} live status</a>
-            <button class="btn btn-inline"
+            <button type="button" class="btn btn-inline"
                     hx-get="/routes/new"
                     hx-target="#content"
                     hx-swap="innerHTML">+ Add route</button>

@@ -1,15 +1,15 @@
-<tr id="row-{{ r.hostname }}">
+<tr>
     <td colspan="{{ 8 if live else 7 }}">
         <div class="confirm-cell">
             <span class="confirm-msg">Delete <strong class="mono">{{ r.hostname }}</strong> from Caddy, tunnel, and DNS?</span>
             <div class="row-actions" style="margin-left: auto;">
-                <button class="btn btn-inline btn-danger"
+                <button type="button" class="btn btn-inline btn-danger"
                         hx-delete="/routes/{{ r.hostname }}"
                         hx-target="#content"
                         hx-swap="innerHTML">Confirm delete</button>
-                <button class="btn btn-inline btn-secondary"
+                <button type="button" class="btn btn-inline btn-secondary"
                         hx-get="/routes/{{ r.hostname }}/row"
-                        hx-target="#row-{{ r.hostname }}"
+                        hx-target="closest tr"
                         hx-swap="outerHTML">Cancel</button>
             </div>
         </div>
