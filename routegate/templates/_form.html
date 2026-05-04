@@ -20,7 +20,13 @@
                     value="{{ form.subdomain }}"
                     {% if mode == 'edit' %}readonly{% endif %}
                     placeholder="e.g. emby" required>
-                <span class="field-hint">Will resolve as <span class="mono">{{ form.subdomain or 'NAME' }}.{{ form.domain }}</span></span>
+                <span class="field-hint">
+                    {% if mode == 'edit' %}
+                        Subdomain is fixed for v1. To rename, delete and re-create.
+                    {% else %}
+                        Will resolve as <span class="mono">{{ form.subdomain or 'NAME' }}.{{ form.domain }}</span>
+                    {% endif %}
+                </span>
                 {% if errors.subdomain %}<span class="field-error">{{ errors.subdomain }}</span>{% endif %}
             </div>
 

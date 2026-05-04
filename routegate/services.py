@@ -129,7 +129,12 @@ async def create_route(
         raise ValidationError(
             f"hostname {req.hostname} already in tunnel config", field="subdomain"
         )
-    existing_cname = await _find_cname(cf, req.hostname, settings.tunnel_cname_target)
+    try:
+        existing_cname = await _find_cname(
+            cf, req.hostname, settings.tunnel_cname_target
+        )
+    except cloudflare.CloudflareError as e:
+        raise RoutegateError(f"Cloudflare lookup failed: {e}") from e
     if existing_cname is not None:
         raise ValidationError(
             f"hostname {req.hostname} already has a tunnel CNAME",
@@ -195,7 +200,12 @@ async def update_route(
 
     caddy_doc = caddy.load(settings.caddyfile_path)
     tunnel_doc = tunnel.load(settings.cloudflared_config_path)
-    existing_cname = await _find_cname(cf, req.hostname, settings.tunnel_cname_target)
+    try:
+        existing_cname = await _find_cname(
+            cf, req.hostname, settings.tunnel_cname_target
+        )
+    except cloudflare.CloudflareError as e:
+        raise RoutegateError(f"Cloudflare lookup failed: {e}") from e
     if not (caddy_doc.find_route(req.hostname) or tunnel_doc.find(req.hostname) or existing_cname):
         raise ValidationError(
             f"hostname {req.hostname} not found in any source", field="subdomain"
@@ -271,7 +281,10 @@ async def delete_route(
 
     caddy_doc = caddy.load(settings.caddyfile_path)
     tunnel_doc = tunnel.load(settings.cloudflared_config_path)
-    existing_cname = await _find_cname(cf, hostname, settings.tunnel_cname_target)
+    try:
+        existing_cname = await _find_cname(cf, hostname, settings.tunnel_cname_target)
+    except cloudflare.CloudflareError as e:
+        raise RoutegateError(f"Cloudflare lookup failed: {e}") from e
 
     if not (caddy_doc.find_route(hostname) or tunnel_doc.find(hostname) or existing_cname):
         raise ValidationError(f"hostname {hostname} not found in any source")

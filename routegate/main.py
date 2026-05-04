@@ -9,6 +9,7 @@ managed by the lifespan context.
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from . import caddy, cloudflare, config, reload, routes, services, tunnel
+
+log = logging.getLogger("routegate")
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -298,6 +301,18 @@ async def create_route(
             flash=_flash_for_routegate_error("create", req.hostname, e),
             status_code=500,
         )
+    except Exception as e:
+        log.exception("unexpected error creating %s", req.hostname)
+        return _form_panel(
+            request,
+            mode="create",
+            form=form,
+            flash={
+                "kind": "error",
+                "message": f"Unexpected error: {type(e).__name__}: {e}",
+            },
+            status_code=500,
+        )
 
     views = await _list_views(request)
     return _panel(
@@ -370,6 +385,18 @@ async def update_route(
             flash=_flash_for_routegate_error("update", hostname, e),
             status_code=500,
         )
+    except Exception as e:
+        log.exception("unexpected error updating %s", hostname)
+        return _form_panel(
+            request,
+            mode="edit",
+            form=form,
+            flash={
+                "kind": "error",
+                "message": f"Unexpected error: {type(e).__name__}: {e}",
+            },
+            status_code=500,
+        )
 
     views = await _list_views(request)
     return _panel(
@@ -420,6 +447,19 @@ async def delete_route(request: Request, hostname: str):
             settings=settings,
             live=False,
             flash=_flash_for_routegate_error("delete", hostname, e),
+            status_code=500,
+        )
+    except Exception as e:
+        log.exception("unexpected error deleting %s", hostname)
+        return _panel(
+            request,
+            routes_views=await _list_views(request),
+            settings=settings,
+            live=False,
+            flash={
+                "kind": "error",
+                "message": f"Unexpected error: {type(e).__name__}: {e}",
+            },
             status_code=500,
         )
 
