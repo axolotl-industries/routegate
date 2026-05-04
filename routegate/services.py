@@ -144,19 +144,21 @@ async def create_route(
     undo: list[_UndoStep] = []
     services_touched = False
     try:
-        # Step 1: Cloudflare CNAME.
+        # Step 1: Cloudflare CNAME (always — both bypass and non-bypass routes
+        # need DNS pointing at the tunnel).
         record = await cf.create_cname(
             name=req.hostname, content=settings.tunnel_cname_target, proxied=True
         )
         undo.append(_UndoStep("delete CNAME", _delete_cname_action(cf, record.id)))
 
-        # Step 2: tunnel ingress entry.
-        tunnel_target = (
-            f"http://{req.target}" if req.bypass_caddy else settings.caddy_tunnel_target
-        )
-        _add_tunnel_entry(settings, req.hostname, tunnel_target, undo)
+        # Step 2: tunnel ingress entry. Only for bypass routes — non-bypass
+        # routes ride on the cloudflared catch-all that points at Caddy.
+        if req.bypass_caddy:
+            _add_tunnel_entry(
+                settings, req.hostname, f"http://{req.target}", undo
+            )
 
-        # Step 3: Caddy entry (skipped when bypassing).
+        # Step 3: Caddy entry (only for non-bypass routes).
         if not req.bypass_caddy:
             _add_caddy_entry(
                 settings,
@@ -166,13 +168,11 @@ async def create_route(
                 undo=undo,
             )
 
-        # Step 4: reload Caddy.
+        # Step 4: reload only the services we touched.
         if on_reload_caddy and not req.bypass_caddy:
             services_touched = True
             await asyncio.to_thread(on_reload_caddy)
-
-        # Step 5: restart cloudflared.
-        if on_restart_cloudflared:
+        if on_restart_cloudflared and req.bypass_caddy:
             services_touched = True
             await asyncio.to_thread(on_restart_cloudflared)
     except Exception as e:
@@ -211,29 +211,42 @@ async def update_route(
             f"hostname {req.hostname} not found in any source", field="subdomain"
         )
 
+    had_tunnel = tunnel_doc.find(req.hostname) is not None
+    had_caddy = caddy_doc.find_route(req.hostname) is not None
+
     undo: list[_UndoStep] = []
     services_touched = False
+    tunnel_touched = False
+    caddy_touched = False
     try:
-        # Tunnel: rewrite the entry. Always touched, since target may change
-        # (bypass_caddy flips between caddy and direct target).
-        tunnel_target = (
-            f"http://{req.target}" if req.bypass_caddy else settings.caddy_tunnel_target
-        )
-        snap = _snapshot_file(settings.cloudflared_config_path)
-        td = tunnel.load(settings.cloudflared_config_path)
-        if td.find(req.hostname):
-            td.update(req.hostname, service=tunnel_target)
-        else:
-            td.add(req.hostname, tunnel_target)
-        tunnel.save(td, settings.cloudflared_config_path)
-        undo.append(_UndoStep("restore tunnel config", _restore_file_action(snap)))
-
-        # Caddy:
-        caddy_snap = _snapshot_file(settings.caddyfile_path)
-        cd = caddy.load(settings.caddyfile_path)
+        # Tunnel post-condition: entry exists iff bypass_caddy.
         if req.bypass_caddy:
-            cd.remove_route(req.hostname)
-        else:
+            tunnel_target = f"http://{req.target}"
+            snap = _snapshot_file(settings.cloudflared_config_path)
+            td = tunnel.load(settings.cloudflared_config_path)
+            if td.find(req.hostname):
+                td.update(req.hostname, service=tunnel_target)
+            else:
+                td.add(req.hostname, tunnel_target)
+            tunnel.save(td, settings.cloudflared_config_path)
+            undo.append(
+                _UndoStep("restore tunnel config", _restore_file_action(snap))
+            )
+            tunnel_touched = True
+        elif had_tunnel:
+            snap = _snapshot_file(settings.cloudflared_config_path)
+            td = tunnel.load(settings.cloudflared_config_path)
+            td.remove(req.hostname)
+            tunnel.save(td, settings.cloudflared_config_path)
+            undo.append(
+                _UndoStep("restore tunnel config", _restore_file_action(snap))
+            )
+            tunnel_touched = True
+
+        # Caddy post-condition: entry exists iff not bypass_caddy.
+        if not req.bypass_caddy:
+            caddy_snap = _snapshot_file(settings.caddyfile_path)
+            cd = caddy.load(settings.caddyfile_path)
             existing = cd.find_route(req.hostname)
             if existing is not None:
                 existing.target = req.target
@@ -247,14 +260,22 @@ async def update_route(
                         authelia=req.authelia,
                     )
                 )
-        caddy.save(cd, settings.caddyfile_path)
-        undo.append(_UndoStep("restore Caddyfile", _restore_file_action(caddy_snap)))
+            caddy.save(cd, settings.caddyfile_path)
+            undo.append(_UndoStep("restore Caddyfile", _restore_file_action(caddy_snap)))
+            caddy_touched = True
+        elif had_caddy:
+            caddy_snap = _snapshot_file(settings.caddyfile_path)
+            cd = caddy.load(settings.caddyfile_path)
+            cd.remove_route(req.hostname)
+            caddy.save(cd, settings.caddyfile_path)
+            undo.append(_UndoStep("restore Caddyfile", _restore_file_action(caddy_snap)))
+            caddy_touched = True
 
-        # Reloads.
-        if on_reload_caddy:
+        # Reload only the services we touched.
+        if on_reload_caddy and caddy_touched:
             services_touched = True
             await asyncio.to_thread(on_reload_caddy)
-        if on_restart_cloudflared:
+        if on_restart_cloudflared and tunnel_touched:
             services_touched = True
             await asyncio.to_thread(on_restart_cloudflared)
     except Exception as e:
@@ -291,6 +312,8 @@ async def delete_route(
 
     undo: list[_UndoStep] = []
     services_touched = False
+    caddy_touched = False
+    tunnel_touched = False
     try:
         # 1. Caddy first.
         if caddy_doc.find_route(hostname):
@@ -299,6 +322,7 @@ async def delete_route(
             cd.remove_route(hostname)
             caddy.save(cd, settings.caddyfile_path)
             undo.append(_UndoStep("restore Caddyfile", _restore_file_action(caddy_snap)))
+            caddy_touched = True
 
         # 2. Tunnel.
         if tunnel_doc.find(hostname):
@@ -309,6 +333,7 @@ async def delete_route(
             undo.append(
                 _UndoStep("restore tunnel config", _restore_file_action(tunnel_snap))
             )
+            tunnel_touched = True
 
         # 3. CNAME.
         if existing_cname is not None:
@@ -321,11 +346,11 @@ async def delete_route(
                 )
             )
 
-        # 4. Reloads.
-        if on_reload_caddy:
+        # 4. Reload only the services we touched.
+        if on_reload_caddy and caddy_touched:
             services_touched = True
             await asyncio.to_thread(on_reload_caddy)
-        if on_restart_cloudflared:
+        if on_restart_cloudflared and tunnel_touched:
             services_touched = True
             await asyncio.to_thread(on_restart_cloudflared)
     except Exception as e:

@@ -42,7 +42,6 @@ def _settings(tmp_path: Path) -> Settings:
         default_domain="geoffflix.uk",
         caddy_container_name="caddy",
         cloudflared_container_name="cloudflared",
-        caddy_tunnel_target="http://caddy:80",
         protected_hostnames=frozenset({"auth.geoffflix.uk"}),
     )
 
@@ -97,7 +96,9 @@ def _read(p: str) -> bytes:
 # create — happy path
 
 
-async def test_create_writes_all_three_sources(tmp_path):
+async def test_create_non_bypass_writes_caddy_and_dns_only(tmp_path):
+    """Non-bypass routes ride on the cloudflared catch-all and don't get an
+    explicit tunnel ingress entry — only Caddy + DNS are touched."""
     s = _settings(tmp_path)
     cf = FakeCFClient()
 
@@ -117,25 +118,23 @@ async def test_create_writes_all_three_sources(tmp_path):
         on_restart_cloudflared=lambda: restart_calls.append(1),
     )
 
-    # Caddy
+    # Caddy: entry created
     cd = caddy.load(s.caddyfile_path)
     new = cd.find_route("newapp.geoffflix.uk")
     assert new is not None
     assert new.target == "192.168.1.50:8000"
     assert new.authelia is True
 
-    # Tunnel — points at caddy, not direct target
+    # Tunnel: NO new entry (catch-all handles it)
     td = tunnel.load(s.cloudflared_config_path)
-    entry = td.find("newapp.geoffflix.uk")
-    assert entry is not None
-    assert entry["service"] == "http://caddy:80"
+    assert td.find("newapp.geoffflix.uk") is None
 
-    # CNAME
+    # CNAME: created
     assert any(r.name == "newapp.geoffflix.uk" for r in cf.records.values())
 
-    # Reloads called once each
+    # Caddy reloaded; cloudflared NOT restarted (tunnel wasn't touched)
     assert reload_calls == [1]
-    assert restart_calls == [1]
+    assert restart_calls == []
 
 
 async def test_create_with_bypass_caddy_skips_caddy_and_uses_direct_tunnel(tmp_path):
@@ -277,7 +276,9 @@ async def test_create_rollback_when_cname_fails(tmp_path):
     assert cf.records == {}
 
 
-async def test_create_rollback_when_tunnel_save_fails(tmp_path, monkeypatch):
+async def test_create_bypass_rollback_when_tunnel_save_fails(tmp_path, monkeypatch):
+    """Bypass route fails on tunnel save. CNAME must be deleted; files
+    untouched."""
     s = _settings(tmp_path)
     cf = FakeCFClient()
     caddy_before = _read(s.caddyfile_path)
@@ -302,7 +303,7 @@ async def test_create_rollback_when_tunnel_save_fails(tmp_path, monkeypatch):
                 domain="geoffflix.uk",
                 target="1.2.3.4:80",
                 authelia=False,
-                bypass_caddy=False,
+                bypass_caddy=True,
             ),
             s,
             cf,
@@ -444,7 +445,65 @@ async def test_update_changes_target_and_reverts_on_failure(tmp_path):
     # Both files reverted
     assert _read(s.caddyfile_path) == caddy_before
     assert _read(s.cloudflared_config_path) == tunnel_before
-    assert len(attempts) == 2  # original + realign
+    # Reload attempted twice: the failing original + the realign
+    assert len(attempts) == 2
+
+
+async def test_update_non_bypass_removes_stale_tunnel_entry(tmp_path):
+    """If a hostname has both a Caddy entry and a stale tunnel entry (e.g.
+    from old buggy code or external setup), updating it as non-bypass
+    removes the tunnel entry to match the new post-condition."""
+    s = _settings(tmp_path)
+    cf = FakeCFClient()
+    # Fixture has radarr in tunnel already.
+    assert tunnel.load(s.cloudflared_config_path).find("radarr.geoffflix.uk") is not None
+
+    reload_calls, restart_calls = [], []
+    await services.update_route(
+        services.UpdateRouteRequest(
+            hostname="radarr.geoffflix.uk",
+            target="10.0.0.99:7878",
+            authelia=True,
+            bypass_caddy=False,
+        ),
+        s,
+        cf,
+        on_reload_caddy=lambda: reload_calls.append(1),
+        on_restart_cloudflared=lambda: restart_calls.append(1),
+    )
+
+    # Stale tunnel entry removed
+    assert tunnel.load(s.cloudflared_config_path).find("radarr.geoffflix.uk") is None
+    # Caddy entry updated
+    assert caddy.load(s.caddyfile_path).find_route("radarr.geoffflix.uk").target == "10.0.0.99:7878"
+    # Both services reloaded (caddy because we modified it; cloudflared because we removed an entry)
+    assert reload_calls == [1]
+    assert restart_calls == [1]
+
+
+async def test_update_bypass_to_non_bypass_flips_sources(tmp_path):
+    """Toggling bypass off: tunnel entry removed, caddy entry added."""
+    s = _settings(tmp_path)
+    cf = FakeCFClient()
+    # Fixture has audiobookshelf with both caddy and tunnel entries — for this
+    # test, delete the caddy one first so it starts as bypass-only.
+    cd = caddy.load(s.caddyfile_path)
+    cd.remove_route("audiobookshelf.geoffflix.uk")
+    caddy.save(cd, s.caddyfile_path)
+
+    await services.update_route(
+        services.UpdateRouteRequest(
+            hostname="audiobookshelf.geoffflix.uk",
+            target="192.168.1.74:13378",
+            authelia=True,
+            bypass_caddy=False,
+        ),
+        s,
+        cf,
+    )
+
+    assert caddy.load(s.caddyfile_path).find_route("audiobookshelf.geoffflix.uk") is not None
+    assert tunnel.load(s.cloudflared_config_path).find("audiobookshelf.geoffflix.uk") is None
 
 
 async def test_update_happy_path_changes_caddy_target(tmp_path):

@@ -9,9 +9,11 @@ services:
       # Cloudflare DNS
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID}
-      # Tunnel — UUID for CNAME target, plus the in-tunnel URL Caddy answers on
+      # Tunnel — UUID is used to build CNAME targets (<UUID>.cfargotunnel.com).
+      # routegate writes ingress entries only for bypass-Caddy routes; non-bypass
+      # routes ride on whatever catch-all entry your cloudflared config already
+      # has pointing at Caddy.
       TUNNEL_UUID: ${TUNNEL_UUID}
-      CADDY_TUNNEL_TARGET: ${CADDY_TUNNEL_TARGET:-http://caddy:80}
       # Domain + protection list
       DEFAULT_DOMAIN: ${DEFAULT_DOMAIN:-geoffflix.uk}
       PROTECTED_HOSTNAMES: ${PROTECTED_HOSTNAMES:-auth.geoffflix.uk}

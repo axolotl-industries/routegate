@@ -13,7 +13,6 @@ class Settings:
     default_domain: str
     caddy_container_name: str
     cloudflared_container_name: str
-    caddy_tunnel_target: str
     protected_hostnames: frozenset[str]
 
     @property
@@ -76,9 +75,6 @@ def load() -> Settings:
         caddy_container_name=caddy_container,
         cloudflared_container_name=os.environ.get(
             "CLOUDFLARED_CONTAINER_NAME", "cloudflared"
-        ),
-        caddy_tunnel_target=os.environ.get(
-            "CADDY_TUNNEL_TARGET", f"http://{caddy_container}:80"
         ),
         protected_hostnames=protected,
     )

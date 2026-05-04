@@ -89,8 +89,21 @@ The contract is locked down in `tests/test_services.py` (18 tests).
 | `CLOUDFLARED_CONFIG_PATH` | `/config/cloudflared/config.yml` | |
 | `CADDY_CONTAINER_NAME` | `caddy` | |
 | `CLOUDFLARED_CONTAINER_NAME` | `cloudflared` | |
-| `CADDY_TUNNEL_TARGET` | `http://<CADDY_CONTAINER_NAME>:80` | URL the tunnel routes non-bypass hostnames to |
 | `PROTECTED_HOSTNAMES` | `auth.<DEFAULT_DOMAIN>` | comma-separated; UI refuses edit/delete |
+
+### Tunnel ingress model
+
+routegate writes ingress entries to `cloudflared/config.yml` **only for
+bypass-Caddy routes**. Non-bypass routes ride on whatever catch-all entry
+already exists in your cloudflared config (commonly something like
+`- service: http://<host-ip>:80` pointing at Caddy). This matches the standard
+Caddy + Cloudflare Tunnel pattern: the tunnel funnels everything through Caddy
+by default, and Caddy dispatches by Host header. Routes that need to bypass
+Caddy entirely (e.g., apps with their own TLS or unusual protocols) get an
+explicit ingress entry of their own.
+
+Make sure your cloudflared config has a working catch-all before adding
+non-bypass routes through routegate, otherwise the tunnel has no rule for them.
 
 ## Deploying
 
