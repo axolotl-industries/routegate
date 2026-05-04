@@ -22,10 +22,13 @@ services:
       CADDY_CONTAINER_NAME: ${CADDY_CONTAINER_NAME:-caddy}
       CLOUDFLARED_CONTAINER_NAME: ${CLOUDFLARED_CONTAINER_NAME:-cloudflared}
     volumes:
-      # The two configs routegate manages. Point these at the same files
-      # the caddy / cloudflared containers consume.
-      - ${CADDYFILE_HOST_PATH:-./Caddyfile}:/config/caddy/Caddyfile
-      - ${CLOUDFLARED_CONFIG_HOST_PATH:-./cloudflared-config.yml}:/config/cloudflared/config.yml
+      # The two configs routegate manages. These MUST point at the same files
+      # the caddy / cloudflared containers consume on the host. The `:?`
+      # syntax makes compose fail loudly when unset, instead of silently
+      # falling back to a default that lets Docker auto-create empty
+      # directories where you wanted bind-mounted files.
+      - ${CADDYFILE_HOST_PATH:?set CADDYFILE_HOST_PATH to your real Caddyfile host path}:/config/caddy/Caddyfile
+      - ${CLOUDFLARED_CONFIG_HOST_PATH:?set CLOUDFLARED_CONFIG_HOST_PATH to your real cloudflared config.yml host path}:/config/cloudflared/config.yml
       # Docker socket — required so routegate can `caddy reload` and
       # `docker restart cloudflared` after each successful change. Read-write
       # because exec_run and restart both write.

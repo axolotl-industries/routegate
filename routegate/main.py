@@ -58,9 +58,9 @@ def _panel(
 ):
     template = "_panel.html" if _is_hx(request) else "list.html"
     return templates.TemplateResponse(
+        request,
         template,
         {
-            "request": request,
             "routes": routes_views,
             "settings": settings,
             "live": live,
@@ -81,9 +81,9 @@ def _form_panel(
 ):
     template = "_form.html" if _is_hx(request) else "form.html"
     return templates.TemplateResponse(
+        request,
         template,
         {
-            "request": request,
             "mode": mode,
             "form": form,
             "errors": errors or {},
@@ -211,8 +211,7 @@ async def get_route_row(request: Request, hostname: str, live: bool = False):
     if target is None:
         raise HTTPException(404)
     return templates.TemplateResponse(
-        "_row.html",
-        {"request": request, "r": target, "live": live},
+        request, "_row.html", {"r": target, "live": live}
     )
 
 
@@ -226,8 +225,7 @@ async def confirm_delete_row(request: Request, hostname: str, live: bool = False
     if target is None:
         raise HTTPException(404)
     return templates.TemplateResponse(
-        "_row_confirm.html",
-        {"request": request, "r": target, "live": live},
+        request, "_row_confirm.html", {"r": target, "live": live}
     )
 
 
