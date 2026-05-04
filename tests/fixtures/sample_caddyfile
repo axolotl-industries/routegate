@@ -1,0 +1,117 @@
+{
+    auto_https off
+    servers {
+        trusted_proxies static private_ranges
+        max_header_size 64KiB
+    }
+}
+
+# Reusable forward-auth snippet
+(authelia) {
+    forward_auth authelia:9091 {
+        uri /api/authz/forward-auth
+        copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+        header_up Cookie "authelia_session={http.request.cookie.authelia_session}"
+        header_up X-Original-URL ""
+        header_up X-Original-URI ""
+        header_up X-Forwarded-Uri "/"
+    }
+}
+
+# Authelia's own login page
+http://auth.geoffflix.uk {
+    reverse_proxy authelia:9091
+}
+
+# Protected apps
+http://radarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.33:7878
+}
+
+http://bazarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:6767
+}
+
+http://tdarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:8265
+}
+
+http://yt.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:8081
+}
+
+http://sonarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.32:8989
+}
+
+http://audiobookshelf.geoffflix.uk {
+    redir / /audiobookshelf/ permanent
+    reverse_proxy 192.168.1.74:13378 {
+        header_up X-Forwarded-Proto https
+    }
+}
+
+http://dockge.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:5001
+}
+
+http://listenarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:4545
+}
+
+http://prowlarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.35:9696
+}
+
+
+http://qbittorrent.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.30:8080 {
+        header_up -Referer
+        header_up -Origin
+    }
+
+}
+
+http://sabnzbd.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.37:7777
+}
+
+http://homarr.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.31:7575
+}
+
+http://miniflux.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:4242
+}
+
+http://joplin.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.89:22300
+}
+
+http://comics.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.21:5000
+}
+
+http://mylar.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:8090
+}
+
+http://librarydog.geoffflix.uk {
+    import authelia
+    reverse_proxy 192.168.1.74:8222
+}

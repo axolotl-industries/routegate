@@ -1,0 +1,32 @@
+services:
+  routegate:
+    build: .
+    container_name: routegate
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    environment:
+      # Cloudflare DNS
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID}
+      # Tunnel — UUID for CNAME target, plus the in-tunnel URL Caddy answers on
+      TUNNEL_UUID: ${TUNNEL_UUID}
+      CADDY_TUNNEL_TARGET: ${CADDY_TUNNEL_TARGET:-http://caddy:80}
+      # Domain + protection list
+      DEFAULT_DOMAIN: ${DEFAULT_DOMAIN:-geoffflix.uk}
+      PROTECTED_HOSTNAMES: ${PROTECTED_HOSTNAMES:-auth.geoffflix.uk}
+      # In-container paths (matched by the bind mounts below)
+      CADDYFILE_PATH: /config/caddy/Caddyfile
+      CLOUDFLARED_CONFIG_PATH: /config/cloudflared/config.yml
+      # Container names routegate will reload via the docker socket
+      CADDY_CONTAINER_NAME: ${CADDY_CONTAINER_NAME:-caddy}
+      CLOUDFLARED_CONTAINER_NAME: ${CLOUDFLARED_CONTAINER_NAME:-cloudflared}
+    volumes:
+      # The two configs routegate manages. Point these at the same files
+      # the caddy / cloudflared containers consume.
+      - ${CADDYFILE_HOST_PATH:-./Caddyfile}:/config/caddy/Caddyfile
+      - ${CLOUDFLARED_CONFIG_HOST_PATH:-./cloudflared-config.yml}:/config/cloudflared/config.yml
+      # Docker socket — required so routegate can `caddy reload` and
+      # `docker restart cloudflared` after each successful change. Read-write
+      # because exec_run and restart both write.
+      - /var/run/docker.sock:/var/run/docker.sock

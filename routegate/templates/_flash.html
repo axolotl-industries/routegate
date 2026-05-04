@@ -1,0 +1,6 @@
+{% if flash %}
+<div class="flash flash-{{ flash.kind }}" data-autodismiss>
+    <span class="flash-icon">{% if flash.kind == 'success' %}OK{% elif flash.kind == 'error' %}!!{% else %}··{% endif %}</span>
+    <span>{{ flash.message }}</span>
+</div>
+{% endif %}

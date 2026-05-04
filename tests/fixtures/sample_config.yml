@@ -1,0 +1,13 @@
+tunnel: 8a7c5b3e-1234-4abc-9def-fedcba987654
+credentials-file: /etc/cloudflared/8a7c5b3e-1234-4abc-9def-fedcba987654.json
+
+# Ingress rules: requests are matched top-to-bottom.
+ingress:
+  - hostname: radarr.geoffflix.uk
+    service: http://192.168.1.33:7878
+  - hostname: sonarr.geoffflix.uk
+    service: http://192.168.1.32:8989
+  - hostname: audiobookshelf.geoffflix.uk
+    service: http://192.168.1.74:13378
+  # Catch-all must remain last
+  - service: http_status:404

@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} route — routegate{% endblock %}
+{% block content %}
+{% include "_form.html" %}
+{% endblock %}

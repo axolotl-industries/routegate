@@ -1,0 +1,41 @@
+<tr id="row-{{ r.hostname }}">
+    <td class="mono">
+        {{ r.hostname }}
+        {% if r.protected %}<span class="badge badge-protected">protected</span>{% endif %}
+        {% if r.bypass_caddy %}<span class="badge badge-bypass">bypass</span>{% endif %}
+    </td>
+    <td class="mono muted">{{ r.target or "—" }}</td>
+    <td class="center">
+        {% if r.authelia is none %}<span class="dim">—</span>
+        {% elif r.authelia %}<span class="yes">✓</span>
+        {% else %}<span class="dim">·</span>{% endif %}
+    </td>
+    <td class="center">{% if r.in_caddy %}<span class="yes">✓</span>{% else %}<span class="no">✗</span>{% endif %}</td>
+    <td class="center">{% if r.in_tunnel %}<span class="yes">✓</span>{% else %}<span class="no">✗</span>{% endif %}</td>
+    <td class="center">{% if r.in_dns %}<span class="yes">✓</span>{% else %}<span class="no">✗</span>{% endif %}</td>
+    {% if live %}
+    <td class="center">
+        {% if r.live_status == "ok" %}<span class="status-up">UP</span>
+        {% elif r.live_status == "error" %}<span class="status-down">DOWN</span>
+        {% else %}<span class="status-unknown">UNKNOWN</span>{% endif %}
+    </td>
+    {% endif %}
+    <td class="right">
+        <div class="row-actions">
+            {% if r.protected %}
+                <span class="muted" style="font-size: 12px;">read-only</span>
+            {% elif not r.in_caddy and not r.in_tunnel and not r.in_dns %}
+                <span class="muted" style="font-size: 12px;">—</span>
+            {% else %}
+                <button class="btn-link"
+                        hx-get="/routes/{{ r.hostname }}/edit"
+                        hx-target="#content"
+                        hx-swap="innerHTML">edit</button>
+                <button class="btn-link btn-link-danger"
+                        hx-get="/routes/{{ r.hostname }}/confirm-delete"
+                        hx-target="#row-{{ r.hostname }}"
+                        hx-swap="outerHTML">delete</button>
+            {% endif %}
+        </div>
+    </td>
+</tr>

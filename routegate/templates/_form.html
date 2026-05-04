@@ -1,0 +1,69 @@
+{% include "_flash.html" %}
+
+<div class="card">
+    <div class="panel-header">
+        <span class="panel-title">{{ 'Edit route' if mode == 'edit' else 'Add route' }}{% if mode == 'edit' %} · <span class="mono muted" style="font-weight: normal;">{{ form.hostname }}</span>{% endif %}</span>
+    </div>
+
+    <form
+        {% if mode == 'edit' %}
+            hx-put="/routes/{{ form.hostname }}"
+        {% else %}
+            hx-post="/routes"
+        {% endif %}
+        hx-target="#content"
+        hx-swap="innerHTML">
+        <div class="form-grid">
+            <div class="form-row {% if errors.subdomain %}has-error{% endif %}">
+                <label for="subdomain">Subdomain</label>
+                <input type="text" id="subdomain" name="subdomain"
+                    value="{{ form.subdomain }}"
+                    {% if mode == 'edit' %}readonly{% endif %}
+                    placeholder="e.g. emby" required>
+                <span class="field-hint">Will resolve as <span class="mono">{{ form.subdomain or 'NAME' }}.{{ form.domain }}</span></span>
+                {% if errors.subdomain %}<span class="field-error">{{ errors.subdomain }}</span>{% endif %}
+            </div>
+
+            <div class="form-row">
+                <label for="domain">Domain</label>
+                <input type="text" id="domain" name="domain" value="{{ form.domain }}"
+                    {% if mode == 'edit' %}readonly{% endif %}>
+            </div>
+
+            <div class="form-row full {% if errors.target %}has-error{% endif %}">
+                <label for="target">Internal target (host:port)</label>
+                <input type="text" id="target" name="target"
+                    value="{{ form.target }}"
+                    placeholder="e.g. 192.168.1.74:8096" required>
+                {% if errors.target %}<span class="field-error">{{ errors.target }}</span>{% endif %}
+            </div>
+
+            <div class="form-row">
+                <label class="checkbox-row">
+                    <input type="checkbox" name="authelia" value="1" {% if form.authelia %}checked{% endif %}>
+                    Behind Authelia
+                </label>
+                <span class="field-hint">Adds <span class="mono">import authelia</span> to the Caddy block</span>
+            </div>
+
+            <div class="form-row">
+                <label class="checkbox-row">
+                    <input type="checkbox" name="bypass_caddy" value="1" {% if form.bypass_caddy %}checked{% endif %}>
+                    Bypass Caddy
+                </label>
+                <span class="field-hint">Tunnel routes directly to the target (no Caddy entry)</span>
+            </div>
+
+            <div class="form-row full">
+                <label for="description">Description (optional, not persisted in v1)</label>
+                <input type="text" id="description" name="description" value="{{ form.description or '' }}">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-inline btn-secondary"
+                    hx-get="/" hx-target="#content" hx-swap="innerHTML">Cancel</button>
+            <button type="submit" class="btn btn-inline">{{ 'Save changes' if mode == 'edit' else 'Create route' }}</button>
+        </div>
+    </form>
+</div>
