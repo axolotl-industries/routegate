@@ -10,6 +10,7 @@ managed by the lifespan context.
 from __future__ import annotations
 
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -249,7 +250,7 @@ async def create_route(
     settings = _settings(request)
     domain = (domain or settings.default_domain).strip()
     subdomain = subdomain.strip().lower()
-    target = target.strip()
+    target = _strip_scheme(target.strip())
     form = {
         "subdomain": subdomain,
         "domain": domain,
@@ -334,7 +335,7 @@ async def update_route(
     description: str = Form(""),
 ):
     settings = _settings(request)
-    target = target.strip()
+    target = _strip_scheme(target.strip())
     subdomain, _, domain = hostname.partition(".")
     form = {
         "subdomain": subdomain,
@@ -473,11 +474,11 @@ async def delete_route(request: Request, hostname: str):
 # misc
 
 
+_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://")
+
+
 def _strip_scheme(svc: str) -> str:
-    for p in ("http://", "https://"):
-        if svc.startswith(p):
-            return svc[len(p) :]
-    return svc
+    return _SCHEME_RE.sub("", svc, count=1)
 
 
 def run() -> None:
